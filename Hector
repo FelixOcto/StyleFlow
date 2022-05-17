@@ -1,0 +1,248 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import numpy # für Matrizen\n",
+    "import scipy.special # enthält u.A. die Sigmoid-Funktion\n",
+    "import matplotlib.pyplot as plt # zum Erstellen von Graphen / Bildern\n",
+    "import tensorflow as tf\n",
+    "from tensorflow import keras\n",
+    "print(tf.__version__)\n",
+    "\n",
+    "# Importiere MNIST-Daten per Tensorflow/Keras\n",
+    "(train_images, train_labels), (test_images, test_labels) = tf.keras.datasets.mnist.load_data(path=\"mnist.npz\")\n",
+    "train_images = train_images / 255.0\n",
+    "test_images = test_images / 255.0"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Graph der Sigmoid-Funktion:\n",
+    "xWerte = numpy.arange(-8, 8, 0.1)\n",
+    "yWerte = scipy.special.expit(xWerte)\n",
+    "plt.plot(xWerte,yWerte)\n",
+    "plt.grid()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Definition der Klasse *neuralNetwork*:\n",
+    "**(3. Zelle)**"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "class neuralNetwork:\n",
+    "    \n",
+    "    # Initialisierung\n",
+    "    def __init__(self, inputnodes, hiddennodes, outputnodes, learningrate):\n",
+    "        \n",
+    "        # definiere Lernrate\n",
+    "        self.lr = learningrate\n",
+    "    \n",
+    "        # definiere Aktivierungsfunktion: Sigmoid-Funktion\n",
+    "        self.activation_function = scipy.special.expit\n",
+    "        \n",
+    "        ############ DAS HERZ DES NETZES: ############\n",
+    "        # erzeuge Matrizen mit Verknüpfungsgewichten\n",
+    "        # w_i_j steht für die Verbindung von Knoten i zu Knoten j in der nächsten Schicht: w11 w21\n",
+    "        #                                                                                  w12 w22 etc.\n",
+    "        # Verknüpfung zwischen input und hidden layer:\n",
+    "        self.wih = numpy.random.normal(0.0, pow(hiddennodes, -0.5), (hiddennodes, inputnodes))\n",
+    "        \n",
+    "        #\n",
+    "        # Verknüpfung zwischen hidden und output layer:\n",
+    "        self.who = numpy.random.normal(0.0, pow(hiddennodes, -0.5), (outputnodes, hiddennodes))\n",
+    "        ##############################################\n",
+    "\n",
+    "        \n",
+    "    # Abfrage an Netzwerk\n",
+    "    def evaluate(self, inputs):\n",
+    "        \n",
+    "        # Input wird in passendes Numpy-Array umgewandelt (ohne ndmin=2 klappt später Verwendung von MNIST-Daten nicht)\n",
+    "        inputs = numpy.array(inputs, ndmin=2).T\n",
+    "                \n",
+    "        # Berechne Signale, die in hidden layer ankommen\n",
+    "        hidden_in = numpy.dot(self.wih, inputs)\n",
+    "        # Berechne Signale, die (nach Anwendung der Aktivierungsfunktion) aus hidden layer rausgehen\n",
+    "        hidden_out = self.activation_function(hidden_in)\n",
+    "\n",
+    "        # Berechne Signale, die in output layer ankommen\n",
+    "        output_in = numpy.dot(self.who, hidden_out)        \n",
+    "        # Berechne Signale, die (nach Anwendung der Aktivierungsfunktion) aus output layer rausgehen\n",
+    "        output_out = self.activation_function(output_in)\n",
+    "       \n",
+    "        return output_out\n",
+    "    \n",
+    "    def train(self, inputs, labels):\n",
+    "        # Input wird in passendes Numpy-Array umgewandelt (ohne ndmin=2 klappt später Verwendung von MNIST-Daten nicht)\n",
+    "        inputs = numpy.array(inputs, ndmin=2).T\n",
+    "                \n",
+    "        # Berechne Signale, die in hidden layer ankommen\n",
+    "        hidden_in = numpy.dot(self.wih, inputs)\n",
+    "        # Berechne Signale, die (nach Anwendung der Aktivierungsfunktion) aus hidden layer rausgehen\n",
+    "        hidden_out = self.activation_function(hidden_in)\n",
+    "\n",
+    "        # Berechne Signale, die in output layer ankommen\n",
+    "        output_in = numpy.dot(self.who, hidden_out)       \n",
+    "        # Berechne Signale, die (nach Anwendung der Aktivierungsfunktion) aus output layer rausgehen\n",
+    "        output_out = self.activation_function(output_in)\n",
+    "        \n",
+    "        labels = numpy.array(labels, ndmin=2).T\n",
+    "        \n",
+    "         # Berechne Fehler des output layers\n",
+    "        output_errors = labels - output_out\n",
+    "        \n",
+    "        # Backpropagation: \n",
+    "        # die zurückgeführten Fehler werden entsprechend den Verbindungsgewichten aufgeteilt\n",
+    "        # und für jeden Knoten des hidden layers entsprechend zusammengefasst\n",
+    "        hidden_errors = numpy.dot(self.who.T, output_errors)\n",
+    "        \n",
+    "        \n",
+    "        # Aktualisierung der Gewichte per Gradientenabstiegsverfahren\n",
+    "        # (hier steckt die Ableitung der Sigmoid-Funktion in der Struktur x*(1-x) mit drin)\n",
+    "        self.who += self.lr * numpy.dot((output_errors * output_out * (1.0 - output_out)), hidden_out.T)\n",
+    "        self.wih += self.lr * numpy.dot((hidden_errors * hidden_out * (1.0 - hidden_out)), inputs.T)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Erstellung eines Netzes mit bestimmten Parametern:\n",
+    "**(4. Zelle)**"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "input_nodes = 784  # da ein Input-Bild 28x28 Pixel hat\n",
+    "hidden_nodes = 100 # Anzahl der Knoten im hidden layer (kann zum Optimieren verändert werden)\n",
+    "output_nodes = 10  # da es 10 Antwortmöglichkeiten gibt\n",
+    "learning_rate = 0.3\n",
+    "\n",
+    "# erzeuge Netz\n",
+    "nn = neuralNetwork(input_nodes, hidden_nodes, output_nodes, learning_rate)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Erfrage Anwort des Netzes auf bestimmten Input:\n",
+    "**(5. Zelle)**"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "a = nn.evaluate(train_images[0].flatten())\n",
+    "#print(a)\n",
+    "plt.bar(numpy.arange(10),a.flatten())\n",
+    "plt.show()\n",
+    "print('erkannt als: ',numpy.argmax(a) )\n",
+    "print('Label:',train_labels[0])\n",
+    "#plt.imshow(train_images[0], cmap='Greys')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Ermittle Trefferquote des Netzes:\n",
+    "**(6. Zelle)**"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Erprobt das trainierte Netz\n",
+    "\n",
+    "anzahlTreffer = 0\n",
+    "anzahlNieten = 0\n",
+    "for i in range(0, len(test_images)):\n",
+    "    a = nn.evaluate(test_images[i].flatten())\n",
+    "    if numpy.argmax(a) == test_labels[i]:\n",
+    "        anzahlTreffer += 1\n",
+    "    else:\n",
+    "        anzahlNieten += 1\n",
+    "print (\"Trefferquote:\",anzahlTreffer / (anzahlTreffer + anzahlNieten))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Training des Netzes:\n",
+    "**(7. Zelle)**"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Trainiere für alle in train_images enthaltenen Daten\n",
+    "for i in range(0, len(train_images)):\n",
+    "    current_train_image = (train_images[i].flatten())\n",
+    "    current_target = numpy.zeros(output_nodes) + 0.01 # setze alle Werte in Target-Liste auf 0.01\n",
+    "    current_target[train_labels[i]]=0.99              # setze den korrekten Wert auf 0.99\n",
+    "\n",
+    "    nn.train(current_train_image,current_target)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.8.5"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
